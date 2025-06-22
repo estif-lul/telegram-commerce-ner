@@ -6,6 +6,7 @@ from datasets import load_dataset, Dataset, DatasetDict, ClassLabel, Features, S
 from transformers import AutoTokenizer, AutoModelForTokenClassification, TrainingArguments, Trainer, DataCollatorForTokenClassification
 from seqeval.metrics import classification_report, accuracy_score, f1_score, precision_score, recall_score
 import matplotlib.pyplot as plt
+import shap
 
 # --- STEP 1: Define Labels ---
 label_list = ["O", "B-I-Product", "B-B-Product", "I-B-Product", "I-I-Product",
@@ -32,7 +33,7 @@ def read_conll(filepath):
             samples.append({"tokens": tokens, "ner_tags": tags})
     return samples
 
-train_data = read_conll("./data/sample_label.txt")  # replace with your actual file path
+train_data = read_conll("./data/sample_label.txt") 
 valid_data = read_conll("./data/sample_label.txt")
 
 dataset = DatasetDict({
@@ -136,21 +137,26 @@ true_preds = [[id_to_label[p] for (p, l) in zip(pred, label) if l != -100]
 report = classification_report(true_labels, true_preds)
 
 print(report)
-# Extract metrics
-entity_types = [label for label in report.keys() if label not in ["micro avg", "macro avg", "weighted avg", "accuracy"]]
-f1_scores = [report[ent]["f1-score"] for ent in entity_types]
-precisions = [report[ent]["precision"] for ent in entity_types]
-recalls = [report[ent]["recall"] for ent in entity_types]
+# # Extract metrics
+# entity_types = [label for label in report.keys() if label not in ["micro avg", "macro avg", "weighted avg", "accuracy"]]
+# f1_scores = [report[ent]["f1-score"] for ent in entity_types]
+# precisions = [report[ent]["precision"] for ent in entity_types]
+# recalls = [report[ent]["recall"] for ent in entity_types]
 
-# Plot
-x = range(len(entity_types))
-plt.figure(figsize=(10, 6))
-plt.bar(x, precisions, width=0.25, label="Precision", align="center")
-plt.bar([i + 0.25 for i in x], recalls, width=0.25, label="Recall", align="center")
-plt.bar([i + 0.50 for i in x], f1_scores, width=0.25, label="F1-Score", align="center")
-plt.xticks([i + 0.25 for i in x], entity_types, rotation=45)
-plt.ylabel("Score")
-plt.title("NER Evaluation Metrics per Entity Type")
-plt.legend()
-plt.tight_layout()
-plt.show()
+# # Plot
+# x = range(len(entity_types))
+# plt.figure(figsize=(10, 6))
+# plt.bar(x, precisions, width=0.25, label="Precision", align="center")
+# plt.bar([i + 0.25 for i in x], recalls, width=0.25, label="Recall", align="center")
+# plt.bar([i + 0.50 for i in x], f1_scores, width=0.25, label="F1-Score", align="center")
+# plt.xticks([i + 0.25 for i in x], entity_types, rotation=45)
+# plt.ylabel("Score")
+# plt.title("NER Evaluation Metrics per Entity Type")
+# plt.legend()
+# plt.tight_layout()
+# plt.show()
+
+explainer = shap.Explainer(model, tokenizer)
+shap_values = explainer(tokenized_dataset["validation"][:10]["tokens"])
+
+shap.plots.text(shap_values[0])
