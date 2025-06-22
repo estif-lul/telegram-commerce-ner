@@ -3,6 +3,7 @@ import re
 def normalize_amharic(text):
     """
     Normalize Amharic text by removing redundant characters.
+
     """
     subs = {
         '[ሀሐኀሃኃ]': 'ሀ', '[ሁሑኁ]': 'ሁ', '[ሂሑኂ]': 'ሂ', '[ሄሔኄ]': 'ሄ', '[ህሕኅ]': 'ህ', '[ሆሖኆ]': 'ሆ',
@@ -16,6 +17,18 @@ def normalize_amharic(text):
     return text.strip()
 
 def remove_emojies(text):
+        
+    """
+    Removes emoji characters from the input text string.
+    This function uses a regular expression to identify and remove a wide range of emoji characters,
+    including emoticons, symbols, pictographs, transport and map symbols, flags, dingbats, enclosed characters,
+    and supplemental symbols and pictographs.
+    Args:
+        text (str): The input string from which emojis should be removed.
+    Returns:
+        str: The input string with all emoji characters removed and leading/trailing whitespace stripped.
+    """
+
     emoji_pattern = re.compile(
         "["
         "\U0001F600-\U0001F64F"  # Emoticons

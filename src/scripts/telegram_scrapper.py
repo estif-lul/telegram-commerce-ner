@@ -12,6 +12,14 @@ phone = os.getenv('phone')
 
 # Function to scrape data from a single channel
 async def scrape_channel(client, channel_username, writer, media_dir):
+    """    
+    Scrapes messages from a Telegram channel and writes them to a CSV file.
+    Args:
+        client (TelegramClient): The Telegram client instance.
+        channel_username (str): The username of the channel to scrape.
+        writer (csv.writer): The CSV writer object to write data.
+        media_dir (str): Directory to save media files.
+    """
     entity = await client.get_entity(channel_username)
     channel_title = entity.title  # Extract the channel's title
     print(f"Scrapping data from {channel_title}")

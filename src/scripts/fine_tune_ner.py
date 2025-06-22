@@ -1,12 +1,9 @@
-# !pip install transformers datasets seqeval --quiet
-
-import os
 import numpy as np
-from datasets import load_dataset, Dataset, DatasetDict, ClassLabel, Features, Sequence, Value
+from datasets import Dataset, DatasetDict
 from transformers import AutoTokenizer, AutoModelForTokenClassification, TrainingArguments, Trainer, DataCollatorForTokenClassification
 from seqeval.metrics import classification_report, accuracy_score, f1_score, precision_score, recall_score
-import matplotlib.pyplot as plt
-import shap
+from ner_wrapper import NERWrapper
+from lime.lime_text import LimeTextExplainer
 
 # --- STEP 1: Define Labels ---
 label_list = ["O", "B-I-Product", "B-B-Product", "I-B-Product", "I-I-Product",
@@ -16,6 +13,19 @@ id_to_label = {idx: label for label, idx in label_to_id.items()}
 
 # --- STEP 2: Load CoNLL-style text files ---
 def read_conll(filepath):
+    """
+    Reads a CoNLL-formatted file and parses it into a list of samples for NER tasks.
+    Each sample is represented as a dictionary with two keys:
+        - "tokens": a list of token strings from a sentence.
+        - "ner_tags": a list of integer NER tag IDs corresponding to each token.
+    The function expects each line in the file to contain at least four whitespace-separated columns,
+    where the first column is the token and the fourth column is the NER tag (as a string).
+    Sentences are separated by blank lines.
+    Args:
+        filepath (str): Path to the CoNLL-formatted file.
+    Returns:
+        List[Dict[str, List]]: A list of dictionaries, each containing "tokens" and "ner_tags" for a sentence.
+    """
     with open(filepath, encoding="utf-8") as f:
         tokens, tags, samples = [], [], []
         for line in f:
@@ -50,6 +60,12 @@ tokenizer = AutoTokenizer.from_pretrained(model_checkpoint)
 
 # --- STEP 4: Tokenize and align labels ---
 def tokenize_and_align_labels(example):
+    """    Tokenizes the input tokens and aligns the NER labels with the tokenized output.
+    Args:
+        example (Dict): A dictionary containing "tokens" (list of strings) and "ner_tags" (list of integers).
+    Returns:
+        Dict: A dictionary with tokenized inputs and aligned labels.
+    """
     tokenized_inputs = tokenizer(example["tokens"], truncation=True, is_split_into_words=True)
     word_ids = tokenized_inputs.word_ids()
     aligned_labels = []
@@ -93,6 +109,18 @@ training_args = TrainingArguments(
 
 # --- STEP 7: Define metrics ---
 def compute_metrics(pred):
+    """
+    Compute evaluation metrics for a sequence labeling task.
+    Args:
+        pred (Tuple): A tuple containing model predictions and true labels.
+            - predictions: np.ndarray of shape (batch_size, seq_len, num_labels)
+            - labels: np.ndarray of shape (batch_size, seq_len)
+    Returns:
+        Dict: A dictionary containing precision, recall, F1 score, and accuracy.
+    """
+
+
+
     predictions, labels = pred
     predictions = np.argmax(predictions, axis=2)
 
@@ -137,26 +165,12 @@ true_preds = [[id_to_label[p] for (p, l) in zip(pred, label) if l != -100]
 report = classification_report(true_labels, true_preds)
 
 print(report)
-# # Extract metrics
-# entity_types = [label for label in report.keys() if label not in ["micro avg", "macro avg", "weighted avg", "accuracy"]]
-# f1_scores = [report[ent]["f1-score"] for ent in entity_types]
-# precisions = [report[ent]["precision"] for ent in entity_types]
-# recalls = [report[ent]["recall"] for ent in entity_types]
 
-# # Plot
-# x = range(len(entity_types))
-# plt.figure(figsize=(10, 6))
-# plt.bar(x, precisions, width=0.25, label="Precision", align="center")
-# plt.bar([i + 0.25 for i in x], recalls, width=0.25, label="Recall", align="center")
-# plt.bar([i + 0.50 for i in x], f1_scores, width=0.25, label="F1-Score", align="center")
-# plt.xticks([i + 0.25 for i in x], entity_types, rotation=45)
-# plt.ylabel("Score")
-# plt.title("NER Evaluation Metrics per Entity Type")
-# plt.legend()
-# plt.tight_layout()
-# plt.show()
+# Initialize
+ner_model = NERWrapper(model, tokenizer)
+explainer = LimeTextExplainer(class_names=label_list)
 
-explainer = shap.Explainer(model, tokenizer)
-shap_values = explainer(tokenized_dataset["validation"][:10]["tokens"])
-
-shap.plots.text(shap_values[0])
+text = "ዋጋ 1000 ብር በአዲስ አበባ ይሸጣል።"
+# Explain
+exp = explainer.explain_instance(text, ner_model.predict_proba, num_features=10)
+exp.show_in_notebook()
