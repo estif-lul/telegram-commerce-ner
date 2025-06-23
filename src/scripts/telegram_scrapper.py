@@ -31,15 +31,17 @@ async def scrape_channel(client, channel_username, writer, media_dir):
 
     async for message in client.iter_messages(entity, limit=10000):
         media_path = None
-        if message.media and hasattr(message.media, 'photo'):
-            # Create a unique filename for the photo
-            filename = f"{channel_username}_{message.id}.jpg"
-            media_path = os.path.join(media_dir, filename)
-            # Download the media to the specified directory if it's a photo
-            await client.download_media(message.media, media_path)
+        views = getattr(message, "views", None)  # Get views if available
+        # print(views)
+        # if message.media and hasattr(message.media, 'photo'):
+        #     # Create a unique filename for the photo
+        #     filename = f"{channel_username}_{message.id}.jpg"
+        #     media_path = os.path.join(media_dir, filename)
+        #     # Download the media to the specified directory if it's a photo
+        #     await client.download_media(message.media, media_path)
         
         # Write the channel title along with other data
-        writer.writerow([channel_title, channel_username, message.id, message.message, message.date, media_path])
+        writer.writerow([channel_title, channel_username, message.id, message.message, message.date, media_path, views])
         pbar.update(1)
     pbar.close()
 
@@ -60,9 +62,10 @@ async def main():
         
         # List of channels to scrape
         channels = [
-            '@Leyueqa', '@sinayelj', '@marakibrand', '@qnashcom', '@MerttEka'  
+            '@Shageronlinestore', '@sinayelj', '@marakibrand', '@qnashcom', '@MerttEka'  
         ]
-        
+
+        # channels = ['@Leyueqa']
         # Iterate over channels and scrape data into the single CSV file
         for channel in channels:
             await scrape_channel(client, channel, writer, media_dir)

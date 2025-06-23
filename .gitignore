@@ -9,6 +9,12 @@ __pycache__/
 # Data files
 data/
 
+# Models
+models/
+logs/
+
+*session
+
 # Distribution / packaging
 .Python
 build/

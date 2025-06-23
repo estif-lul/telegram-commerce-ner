@@ -1,3 +1,4 @@
+import re
 import numpy as np
 from datasets import Dataset, DatasetDict
 from transformers import AutoTokenizer, AutoModelForTokenClassification, TrainingArguments, Trainer, DataCollatorForTokenClassification
@@ -6,8 +7,7 @@ from ner_wrapper import NERWrapper
 from lime.lime_text import LimeTextExplainer
 
 # --- STEP 1: Define Labels ---
-label_list = ["O", "B-I-Product", "B-B-Product", "I-B-Product", "I-I-Product",
-               "B-B-PRICE", "B-I-PRICE", "B-B-LOC", "B-I-LOC", "I-I-LOC"]
+label_list = ["O", "B-Product", "I-Product", "B-PRICE", "I-PRICE", "B-LOC", "I-LOC"]
 label_to_id = {label: idx for idx, label in enumerate(label_list)}
 id_to_label = {idx: label for label, idx in label_to_id.items()}
 
@@ -29,19 +29,40 @@ def read_conll(filepath):
     with open(filepath, encoding="utf-8") as f:
         tokens, tags, samples = [], [], []
         for line in f:
+            
             line = line.strip()
             if line == "":
                 if tokens:
                     samples.append({"tokens": tokens, "ner_tags": tags})
                     tokens, tags = [], []
             else:
+                # line = normalize_label(line)
                 splits = line.split()
                 # print(splits)
                 tokens.append(splits[0])
-                tags.append(label_to_id.get(splits[3], 0))
+                label = normalize_label(splits[3])
+                tags.append(label_to_id.get(label, 0))
+
         if tokens:
             samples.append({"tokens": tokens, "ner_tags": tags})
     return samples
+
+def normalize_label(text):
+    subs = {
+        'B-I-Product': 'B-Product',
+        'B-B-Product': 'B-Product',
+        'I-B-Product': 'I-Product',
+        'I-I-Product': 'I-Product',
+        'B-B-PRICE': 'B-PRICE',
+        'B-I-PRICE': 'B-PRICE',
+        'B-B-LOC': 'B-LOC',
+        'B-I-LOC': 'B-LOC',
+        'I-I-LOC': 'I-LOC'
+    }
+
+    # for pattern, replacement in subs.items():
+    #     text = re.sub(pattern, replacement, text)
+    return subs.get(text, text)
 
 train_data = read_conll("./data/sample_label.txt") 
 valid_data = read_conll("./data/sample_label.txt")
@@ -147,7 +168,7 @@ trainer = Trainer(
 )
 
 trainer.train()
-# trainer.save_model("./models")
+trainer.save_model("./models/xlm-roberta")
 
 print("✅ Model fine-tuned and saved!")
 
@@ -172,5 +193,6 @@ explainer = LimeTextExplainer(class_names=label_list)
 
 text = "ዋጋ 1000 ብር በአዲስ አበባ ይሸጣል።"
 # Explain
-exp = explainer.explain_instance(text, ner_model.predict_proba, num_features=10)
-exp.show_in_notebook()
+# exp = explainer.explain_instance(text, ner_model.predict_proba, num_features=10)
+# exp.show_in_notebook()
+
